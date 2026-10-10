@@ -413,13 +413,13 @@ function updateUserUI() {
     hostNameDisplay.textContent = state.selfName;
     selfRoleBadge.textContent = 'CHỦ PHÒNG';
     selfRoleBadge.className = 'role-badge host-role';
-    guestSyncBanner.classList.remove('active');
+    if (btnCatchup) btnCatchup.style.display = 'none';
     btnTransferHost.style.display = state.conn ? 'inline-block' : 'none';
   } else {
     hostNameDisplay.textContent = state.hostName || 'Chủ phòng';
     selfRoleBadge.textContent = 'THÀNH VIÊN';
     selfRoleBadge.className = 'role-badge member-role';
-    guestSyncBanner.classList.add('active');
+    if (btnCatchup) btnCatchup.style.display = 'inline-flex';
     btnTransferHost.style.display = 'none';
   }
 }
@@ -1141,14 +1141,50 @@ function setupEventListeners() {
     });
   });
 
-  // Fullscreen & PiP
-  btnFullscreen.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      playerContainer.requestFullscreen().catch(() => {});
+  // Bulletproof Cross-browser Fullscreen
+  function toggleFullscreen() {
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    if (!isFs) {
+      const el = playerContainer;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {
+          if (video.requestFullscreen) video.requestFullscreen();
+          else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+        });
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else if (el.mozRequestFullScreen) {
+        el.mozRequestFullScreen();
+      } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+      } else if (video.webkitEnterFullscreen) {
+        video.webkitEnterFullscreen();
+      }
     } else {
-      document.exitFullscreen().catch(() => {});
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
     }
-  });
+  }
+
+  function updateFullscreenIcon() {
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+    btnFullscreen.innerHTML = isFs 
+      ? '<i class="fa-solid fa-compress"></i>' 
+      : '<i class="fa-solid fa-expand"></i>';
+  }
+
+  btnFullscreen.addEventListener('click', toggleFullscreen);
+  video.addEventListener('dblclick', toggleFullscreen);
+  document.addEventListener('fullscreenchange', updateFullscreenIcon);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+  document.addEventListener('mozfullscreenchange', updateFullscreenIcon);
 
   btnPip.addEventListener('click', async () => {
     try {

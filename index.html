@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=3.2">
   <!-- HLS.js for 1080p stream & PeerJS for P2P Voice and Host Sync -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -69,13 +69,6 @@
         <!-- Video Player -->
         <video id="videoPlayer" playsinline preload="auto"></video>
 
-        <!-- Guest Control Notice Banner (When non-host watches) -->
-        <div class="guest-sync-banner" id="guestSyncBanner">
-          <i class="fa-solid fa-lock"></i>
-          <span>Bạn đang xem theo Chủ phòng. Chỉ Chủ phòng mới có quyền tua/dừng phim.</span>
-          <button class="btn-catchup" id="btnCatchup">Bắt kịp Chủ phòng</button>
-        </div>
-
         <!-- Action HUD Indicator (Flash Icon) -->
         <div class="action-hud" id="actionHud">
           <i class="fa-solid fa-play" id="actionHudIcon"></i>
@@ -107,6 +100,10 @@
               <div class="time-label">
                 <span id="curTime">00:00</span> / <span id="durTime">00:00</span>
               </div>
+              <button class="btn-catchup-pill" id="btnCatchup" title="Đồng bộ ngay tới giây của Chủ phòng" style="display:none;">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Bắt kịp Host</span>
+              </button>
             </div>
 
             <div class="ctrl-group-right">
@@ -264,6 +261,6 @@
   <!-- Discord Toast Notification -->
   <div class="toast-stack" id="toastStack"></div>
 
-  <script src="app.js?v=3.0"></script>
+  <script src="app.js?v=3.2"></script>
 </body>
 </html>
