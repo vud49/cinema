@@ -289,6 +289,12 @@ const DEFAULT_EPISODES = [
   }
 ];
 
+// Auto-purge old demo cache so the 47 episodes load immediately
+if (localStorage.getItem('cine_version') !== 'lan_huong_47') {
+  localStorage.removeItem('cine_episodes');
+  localStorage.setItem('cine_version', 'lan_huong_47');
+}
+
 // App State
 const state = {
   episodes: JSON.parse(localStorage.getItem('cine_episodes') || 'null') || DEFAULT_EPISODES,
