@@ -1,9 +1,8 @@
 /**
- * CINEMA TOGETHER - VIP PARTNER CO-WATCHING ENGINE
- * Pure JS + WebRTC (PeerJS) Voice Chat & Priority Sync
+ * CINESYNC - DISCORD INSPIRED WATCH PARTY PLATFORM
+ * Host Authority Master-Key Synchronization Engine
  */
 
-// Default Demo Episodes (Can be configured in Settings for Bunny.net / Cloudflare links)
 const DEFAULT_EPISODES = [
   {
     "epNum": 1,
@@ -290,46 +289,48 @@ const DEFAULT_EPISODES = [
 ];
 
 // Auto-purge old demo cache so the 47 episodes load immediately
-if (localStorage.getItem('cine_version') !== 'lan_huong_47') {
+if (localStorage.getItem('cine_version') !== 'discord_host_v3') {
   localStorage.removeItem('cine_episodes');
-  localStorage.setItem('cine_version', 'lan_huong_47');
+  localStorage.setItem('cine_version', 'discord_host_v3');
 }
 
 // App State
 const state = {
   episodes: JSON.parse(localStorage.getItem('cine_episodes') || 'null') || DEFAULT_EPISODES,
   currentEpisodeIndex: parseInt(localStorage.getItem('cine_current_ep') || '0', 10),
-  selfName: localStorage.getItem('cine_self_name') || 'Anh',
-  partnerName: localStorage.getItem('cine_partner_name') || 'Em',
-  priorityRole: localStorage.getItem('cine_priority_role') || 'partner', // 'partner' | 'self' | 'both'
+  selfName: localStorage.getItem('cine_self_name') || 'Người xem ' + Math.floor(100 + Math.random() * 900),
+  partnerName: 'Thành viên',
   
+  // Host Authority Role
+  isHost: true, // Will be set to false if joining as guest
+  hostName: 'Bạn',
+  lastKnownHostTime: 0,
+  lastKnownHostPaused: true,
+  isApplyingRemote: false,
+
   // WebRTC
   peer: null,
   peerId: null,
-  conn: null, // Data channel
-  call: null, // Media (voice) call
+  conn: null,
+  call: null,
   localStream: null,
   isMicMuted: true,
   partnerMicMuted: true,
-  
-  // Voice visualizer
+
+  // Audio Visualizer
   audioCtx: null,
   localAnalyser: null,
   remoteAnalyser: null,
 
-  // Sync state
-  isHost: false,
-  isRemoteBuffering: false,
-  ignoreNextSyncEvent: false,
-  lastBroadcastTime: 0
+  lastHeartbeatTime: 0
 };
 
 // DOM Elements
 const video = document.getElementById('videoPlayer');
-const videoWrapper = document.getElementById('videoWrapper');
-const customControls = document.getElementById('customControls');
-const syncOverlay = document.getElementById('syncOverlay');
-const syncOverlayText = document.getElementById('syncOverlayText');
+const playerContainer = document.getElementById('playerContainer');
+const videoControls = document.getElementById('videoControls');
+const guestSyncBanner = document.getElementById('guestSyncBanner');
+const btnCatchup = document.getElementById('btnCatchup');
 const actionHud = document.getElementById('actionHud');
 const actionHudIcon = document.getElementById('actionHudIcon');
 const actionHudText = document.getElementById('actionHudText');
@@ -339,10 +340,10 @@ const btnRewind = document.getElementById('btnRewind');
 const btnForward = document.getElementById('btnForward');
 const curTimeDisplay = document.getElementById('curTime');
 const durTimeDisplay = document.getElementById('durTime');
-const progressContainer = document.getElementById('progressContainer');
+const progressWrap = document.getElementById('progressWrap');
 const progressBar = document.getElementById('progressBar');
 const bufferedBar = document.getElementById('bufferedBar');
-const progressHover = document.getElementById('progressHover');
+const progressTooltip = document.getElementById('progressTooltip');
 
 const volSlider = document.getElementById('volSlider');
 const btnVol = document.getElementById('btnVol');
@@ -351,30 +352,35 @@ const speedMenu = document.getElementById('speedMenu');
 const btnPip = document.getElementById('btnPip');
 const btnFullscreen = document.getElementById('btnFullscreen');
 
+const hostPill = document.getElementById('hostPill');
+const hostNameDisplay = document.getElementById('hostNameDisplay');
 const connDot = document.getElementById('connDot');
-const connStatus = document.getElementById('connStatus');
+const connStatusText = document.getElementById('connStatusText');
 const btnShareRoom = document.getElementById('btnShareRoom');
-const priorityBadge = document.getElementById('priorityBadge');
-const priorityName = document.getElementById('priorityName');
 
-const selfAvatar = document.getElementById('selfAvatar');
-const selfRing = document.getElementById('selfRing');
-const selfNameDisplay = document.getElementById('selfNameDisplay');
+const userCount = document.getElementById('userCount');
+const selfCard = document.getElementById('selfCard');
+const selfAvatarBox = document.getElementById('selfAvatarBox');
+const selfNameText = document.getElementById('selfNameText');
+const selfRoleBadge = document.getElementById('selfRoleBadge');
+const selfStatusText = document.getElementById('selfStatusText');
 const selfMicBadge = document.getElementById('selfMicBadge');
-const selfState = document.getElementById('selfState');
-const btnToggleMic = document.getElementById('btnToggleMic');
 
-const partnerAvatar = document.getElementById('partnerAvatar');
-const partnerRing = document.getElementById('partnerRing');
-const partnerNameDisplay = document.getElementById('partnerNameDisplay');
+const partnerCard = document.getElementById('partnerCard');
+const partnerAvatarBox = document.getElementById('partnerAvatarBox');
+const partnerNameText = document.getElementById('partnerNameText');
+const partnerRoleBadge = document.getElementById('partnerRoleBadge');
+const partnerStatusText = document.getElementById('partnerStatusText');
 const partnerMicBadge = document.getElementById('partnerMicBadge');
-const partnerState = document.getElementById('partnerState');
+const btnTransferHost = document.getElementById('btnTransferHost');
+const btnClaimHost = document.getElementById('btnClaimHost');
+const btnToggleMic = document.getElementById('btnToggleMic');
 const remoteAudio = document.getElementById('remoteAudio');
 
 const btnTogglePlaylist = document.getElementById('btnTogglePlaylist');
-const playlistDrawer = document.getElementById('playlistDrawer');
-const btnClosePlaylist = document.getElementById('btnClosePlaylist');
-const playlistItems = document.getElementById('playlistItems');
+const episodesDrawer = document.getElementById('episodesDrawer');
+const btnCloseDrawer = document.getElementById('btnCloseDrawer');
+const episodesList = document.getElementById('episodesList');
 
 const btnSettings = document.getElementById('btnSettings');
 const settingsModal = document.getElementById('settingsModal');
@@ -382,19 +388,16 @@ const btnCloseSettings = document.getElementById('btnCloseSettings');
 const btnSaveSettings = document.getElementById('btnSaveSettings');
 const btnResetSettings = document.getElementById('btnResetSettings');
 const inputSelfName = document.getElementById('inputSelfName');
-const inputPartnerName = document.getElementById('inputPartnerName');
-const selectPriorityRole = document.getElementById('selectPriorityRole');
 const inputVideoSources = document.getElementById('inputVideoSources');
 
 let hlsInstance = null;
-let controlsTimeout = null;
 
 // ==========================================
 // 1. INITIALIZATION & VIDEO SETUP
 // ==========================================
 function init() {
-  updateProfileUI();
-  renderPlaylist();
+  updateUserUI();
+  renderEpisodes();
   loadEpisode(state.currentEpisodeIndex, false);
   setupWebRTC();
   setupVideoEvents();
@@ -402,16 +405,22 @@ function init() {
   setupAudioVisualizerLoop();
 }
 
-function updateProfileUI() {
-  selfNameDisplay.textContent = state.selfName;
-  partnerNameDisplay.textContent = state.conn ? state.partnerName : 'Chờ kết nối...';
-  
-  if (state.priorityRole === 'partner') {
-    priorityName.textContent = state.partnerName;
-  } else if (state.priorityRole === 'self') {
-    priorityName.textContent = state.selfName;
+function updateUserUI() {
+  selfNameText.textContent = state.selfName;
+  inputSelfName.value = state.selfName;
+
+  if (state.isHost) {
+    hostNameDisplay.textContent = state.selfName;
+    selfRoleBadge.textContent = 'CHỦ PHÒNG';
+    selfRoleBadge.className = 'role-badge host-role';
+    guestSyncBanner.classList.remove('active');
+    btnTransferHost.style.display = state.conn ? 'inline-block' : 'none';
   } else {
-    priorityName.textContent = 'Bình đẳng';
+    hostNameDisplay.textContent = state.hostName || 'Chủ phòng';
+    selfRoleBadge.textContent = 'THÀNH VIÊN';
+    selfRoleBadge.className = 'role-badge member-role';
+    guestSyncBanner.classList.add('active');
+    btnTransferHost.style.display = 'none';
   }
 }
 
@@ -422,10 +431,10 @@ function loadEpisode(index, autoPlay = true) {
 
   const ep = state.episodes[index];
   document.getElementById('movieTitle').textContent = ep.title;
-  document.getElementById('streamQuality').textContent = ep.quality || 'Auto 1080p';
+  document.getElementById('streamQuality').textContent = '1080p FHD';
 
-  // Highlight active playlist item
-  document.querySelectorAll('.playlist-item').forEach((el, idx) => {
+  // Highlight active channel in drawer
+  document.querySelectorAll('.episode-channel').forEach((el, idx) => {
     el.classList.toggle('active', idx === index);
   });
 
@@ -436,7 +445,9 @@ function loadEpisode(index, autoPlay = true) {
       hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsInstance.loadSource(url);
       hlsInstance.attachMedia(video);
+
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        // Automatically select highest resolution (1080p)
         if (hlsInstance.levels && hlsInstance.levels.length > 0) {
           let bestLevel = 0;
           let maxHeight = 0;
@@ -447,18 +458,15 @@ function loadEpisode(index, autoPlay = true) {
             }
           });
           hlsInstance.currentLevel = bestLevel;
-          document.getElementById('streamQuality').textContent = `${maxHeight}p Full HD`;
-          console.log(`[HLS] Locked to resolution: ${maxHeight}p`);
+          console.log('[HLS] Locked to level:', maxHeight + 'p');
         }
         if (autoPlay) video.play().catch(() => {});
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Safari
       video.src = url;
       if (autoPlay) video.play().catch(() => {});
     }
   } else {
-    // Normal MP4 file
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
@@ -467,33 +475,43 @@ function loadEpisode(index, autoPlay = true) {
     if (autoPlay) video.play().catch(() => {});
   }
 
-  showToast(`Đang phát: ${ep.title}`);
+  showToast('📺 ' + ep.title);
 }
 
 // ==========================================
-// 2. VIDEO PLAYER CONTROLS & BUFFERING SYNC
+// 2. VIDEO PLAYER EVENTS & HOST BROADCAST
 // ==========================================
 function setupVideoEvents() {
-  // Play / Pause
   video.addEventListener('play', () => {
     btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
     showActionHud('fa-play', 'Phát');
-    if (!state.ignoreNextSyncEvent) {
-      sendData({ type: 'SYNC_PLAY', time: video.currentTime });
+
+    // ONLY Host broadcasts play commands to guests!
+    if (state.isHost && !state.isApplyingRemote) {
+      sendData({
+        type: 'HOST_ACTION',
+        action: 'PLAY',
+        time: video.currentTime,
+        episodeIndex: state.currentEpisodeIndex
+      });
     }
-    state.ignoreNextSyncEvent = false;
   });
 
   video.addEventListener('pause', () => {
     btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
     showActionHud('fa-pause', 'Tạm dừng');
-    if (!state.ignoreNextSyncEvent && !state.isRemoteBuffering) {
-      sendData({ type: 'SYNC_PAUSE', time: video.currentTime });
+
+    // ONLY Host broadcasts pause commands to guests!
+    if (state.isHost && !state.isApplyingRemote) {
+      sendData({
+        type: 'HOST_ACTION',
+        action: 'PAUSE',
+        time: video.currentTime,
+        episodeIndex: state.currentEpisodeIndex
+      });
     }
-    state.ignoreNextSyncEvent = false;
   });
 
-  // Time & Progress Update
   video.addEventListener('timeupdate', () => {
     if (!video.duration) return;
     const current = video.currentTime;
@@ -502,82 +520,69 @@ function setupVideoEvents() {
     durTimeDisplay.textContent = formatTime(duration);
 
     const percent = (current / duration) * 100;
-    progressBar.style.width = `${percent}%`;
+    progressBar.style.width = percent + '%';
 
-    // Heartbeat sync every 2 seconds if Host or Partner
+    // Host periodic heartbeat (every 1.5s) to keep guests strictly aligned
     const now = Date.now();
-    if (now - state.lastBroadcastTime > 2000 && !video.paused) {
-      sendData({ type: 'HEARTBEAT', time: current });
-      state.lastBroadcastTime = now;
+    if (state.isHost && (now - state.lastHeartbeatTime > 1500) && !video.paused) {
+      sendData({
+        type: 'HOST_HEARTBEAT',
+        time: current,
+        isPaused: video.paused,
+        episodeIndex: state.currentEpisodeIndex
+      });
+      state.lastHeartbeatTime = now;
     }
   });
 
-  // Buffer Progress
   video.addEventListener('progress', () => {
     if (video.buffered.length > 0 && video.duration) {
       const bufferedEnd = video.buffered.end(video.buffered.length - 1);
       const percent = (bufferedEnd / video.duration) * 100;
-      bufferedBar.style.width = `${percent}%`;
+      bufferedBar.style.width = percent + '%';
     }
   });
 
-  // ----------------------------------------------------
-  // CRITICAL REQUIREMENT: PRIORITY BUFFERING HANDLING
-  // ----------------------------------------------------
-  video.addEventListener('waiting', () => {
-    // Local device is experiencing network lag / buffering
-    console.log('[Sync] Local video is waiting/buffering...');
-    sendData({
-      type: 'BUFFERING_STATE',
-      isBuffering: true,
-      time: video.currentTime
-    });
-  });
-
-  video.addEventListener('playing', () => {
-    // Local buffering resolved and playback resumed
-    sendData({
-      type: 'BUFFERING_STATE',
-      isBuffering: false,
-      time: video.currentTime
-    });
-  });
-
-  // Auto next episode on ended
   video.addEventListener('ended', () => {
-    if (state.currentEpisodeIndex + 1 < state.episodes.length) {
-      const nextIdx = state.currentEpisodeIndex + 1;
-      loadEpisode(nextIdx, true);
-      sendData({ type: 'SYNC_EPISODE', index: nextIdx });
+    if (state.isHost) {
+      if (state.currentEpisodeIndex + 1 < state.episodes.length) {
+        const nextIdx = state.currentEpisodeIndex + 1;
+        loadEpisode(nextIdx, true);
+        sendData({
+          type: 'HOST_ACTION',
+          action: 'EPISODE',
+          episodeIndex: nextIdx,
+          time: 0
+        });
+      }
     }
   });
 }
 
 function showActionHud(iconClass, text) {
-  actionHudIcon.className = `fa-solid ${iconClass}`;
+  actionHudIcon.className = 'fa-solid ' + iconClass;
   actionHudText.textContent = text;
   actionHud.classList.add('show');
   clearTimeout(actionHud.hudTimeout);
   actionHud.hudTimeout = setTimeout(() => {
     actionHud.classList.remove('show');
-  }, 600);
+  }, 500);
 }
 
 function formatTime(sec) {
   if (isNaN(sec)) return "00:00";
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
-  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
 }
 
 // ==========================================
-// 3. WEBRTC P2P VOICE & SYNC DATA CHANNEL
+// 3. HOST AUTHORITY SYNC & WEBRTC ENGINE
 // ==========================================
 function setupWebRTC() {
   const urlParams = new URLSearchParams(window.location.search);
   const targetRoom = urlParams.get('room');
 
-  // Initialize PeerJS with public cloud signaling
   state.peer = new Peer({
     debug: 1,
     config: {
@@ -590,52 +595,46 @@ function setupWebRTC() {
 
   state.peer.on('open', (id) => {
     state.peerId = id;
-    console.log('[WebRTC] My Peer ID:', id);
+    console.log('[WebRTC] Peer ID:', id);
 
     if (targetRoom) {
-      // Guest joins Room created by Partner/Host
+      // Guest joins Room created by Host
       state.isHost = false;
-      connStatus.textContent = `Đang vào phòng...`;
+      state.hostName = 'Chủ phòng';
+      connStatusText.textContent = 'Đang vào phòng...';
+      updateUserUI();
       connectToPeer(targetRoom);
     } else {
-      // Room Host creates new session
+      // Host creates new session
       state.isHost = true;
-      connStatus.textContent = `Sẵn sàng mời bạn`;
-      window.history.replaceState({}, '', `?room=${id}`);
+      state.hostName = state.selfName;
+      connStatusText.textContent = 'Sẵn sàng mời bạn';
+      window.history.replaceState({}, '', '?room=' + id);
+      updateUserUI();
     }
   });
 
-  // Handle incoming data connection
   state.peer.on('connection', (connection) => {
     state.conn = connection;
     setupDataConnection();
   });
 
-  // Handle incoming voice call
   state.peer.on('call', (incomingCall) => {
     state.call = incomingCall;
-    
-    // Answer with local mic stream if available or silence
-    if (state.localStream) {
-      incomingCall.answer(state.localStream);
-    } else {
-      // Create empty/silent audio track so WebRTC call connects immediately
-      const silentStream = createSilentAudioStream();
-      incomingCall.answer(silentStream);
-    }
+    const streamToAnswer = state.localStream || createSilentAudioStream();
+    incomingCall.answer(streamToAnswer);
 
     incomingCall.on('stream', (remoteStream) => {
-      console.log('[WebRTC Voice] Received remote voice stream');
+      console.log('[Voice] Received remote voice stream');
       remoteAudio.srcObject = remoteStream;
       setupRemoteAudioAnalyser(remoteStream);
-      partnerRing.classList.remove('speaking');
     });
   });
 
   state.peer.on('error', (err) => {
     console.warn('[WebRTC] Error:', err);
-    connStatus.textContent = 'Mất kết nối';
-    connDot.classList.remove('connected');
+    connStatusText.textContent = 'Mất kết nối';
+    connDot.classList.remove('online');
   });
 }
 
@@ -644,35 +643,45 @@ function connectToPeer(remoteId) {
   state.conn = connection;
   setupDataConnection();
 
-  // If local stream already active, place call
   if (state.localStream) {
-    callPartner(remoteId);
+    callMember(remoteId);
   }
 }
 
 function setupDataConnection() {
   state.conn.on('open', () => {
-    console.log('[WebRTC] Data channel connected!');
-    connDot.classList.add('connected');
-    connStatus.textContent = 'Đã kết nối';
-    partnerNameDisplay.textContent = state.partnerName;
-    partnerState.textContent = 'Đang xem chung';
-    document.querySelector('.heartbeat-icon').classList.add('active');
-    showToast(`🟢 ${state.partnerName} đã vào phòng!`);
+    console.log('[WebRTC] Connected with peer!');
+    connDot.classList.add('online');
+    connStatusText.textContent = 'Trực tuyến';
+    userCount.textContent = '2 người';
 
-    // Gửi thông tin ban đầu
-    sendData({
-      type: 'HANDSHAKE',
-      name: state.selfName,
-      isMicMuted: state.isMicMuted,
-      episodeIndex: state.currentEpisodeIndex,
-      currentTime: video.currentTime,
-      isPaused: video.paused
-    });
+    partnerCard.classList.remove('waiting');
+    partnerNameText.textContent = state.isHost ? 'Thành viên mới' : 'Chủ phòng';
+    partnerRoleBadge.style.display = 'inline-block';
+    partnerRoleBadge.textContent = state.isHost ? 'THÀNH VIÊN' : 'CHỦ PHÒNG';
+    partnerRoleBadge.className = 'role-badge ' + (state.isHost ? 'member-role' : 'host-role');
+    partnerStatusText.textContent = 'Đang xem chung';
 
-    // Initiate voice call if guest
-    if (!state.isHost && state.conn.peer) {
-      callPartner(state.conn.peer);
+    if (state.isHost) {
+      btnTransferHost.style.display = 'inline-block';
+      // Host immediately sends full authoritative state to the newly joined guest
+      sendData({
+        type: 'HOST_FULL_SYNC',
+        hostName: state.selfName,
+        episodeIndex: state.currentEpisodeIndex,
+        currentTime: video.currentTime,
+        isPaused: video.paused
+      });
+      showToast('🟢 Thành viên đã tham gia phòng!');
+    } else {
+      // Guest announces presence and requests sync
+      sendData({
+        type: 'GUEST_JOIN',
+        guestName: state.selfName,
+        isMicMuted: state.isMicMuted
+      });
+      callMember(state.conn.peer);
+      showToast('🟢 Đã vào phòng của Chủ phòng!');
     }
   });
 
@@ -681,12 +690,15 @@ function setupDataConnection() {
   });
 
   state.conn.on('close', () => {
-    connDot.classList.remove('connected');
-    connStatus.textContent = 'Người ấy đã rời';
-    partnerState.textContent = 'Ngoại tuyến';
-    document.querySelector('.heartbeat-icon').classList.remove('active');
-    syncOverlay.classList.remove('active');
-    showToast(`⚠️ ${state.partnerName} đã ngắt kết nối.`);
+    connDot.classList.remove('online');
+    connStatusText.textContent = '1 người';
+    userCount.textContent = '1 người';
+    partnerCard.classList.add('waiting');
+    partnerNameText.textContent = 'Chờ thành viên...';
+    partnerRoleBadge.style.display = 'none';
+    partnerStatusText.textContent = 'Đã rời phòng';
+    btnTransferHost.style.display = 'none';
+    showToast('⚠️ Thành viên đã rời phòng.');
   });
 }
 
@@ -697,100 +709,145 @@ function sendData(data) {
 }
 
 // ----------------------------------------------------
-// REALTIME DATA & PRIORITY SYNC HANDLER
+// ROCK-SOLID HOST AUTHORITATIVE SYNC HANDLER
 // ----------------------------------------------------
 function handleIncomingData(data) {
   switch (data.type) {
-    case 'HANDSHAKE':
-      if (data.name) {
-        state.partnerName = data.name;
-        partnerNameDisplay.textContent = data.name;
+    // Guest joins: Host learns guest's name
+    case 'GUEST_JOIN':
+      if (data.guestName) {
+        partnerNameText.textContent = data.guestName;
+        state.partnerName = data.guestName;
       }
       updatePartnerMicUI(data.isMicMuted);
-      // Synchronize video if joining later
-      if (!state.isHost && data.episodeIndex !== undefined) {
-        if (state.currentEpisodeIndex !== data.episodeIndex) {
-          loadEpisode(data.episodeIndex, false);
+      // Reply with current host state
+      if (state.isHost) {
+        sendData({
+          type: 'HOST_FULL_SYNC',
+          hostName: state.selfName,
+          episodeIndex: state.currentEpisodeIndex,
+          currentTime: video.currentTime,
+          isPaused: video.paused
+        });
+      }
+      break;
+
+    // Full sync from Host when Guest enters
+    case 'HOST_FULL_SYNC':
+      if (data.hostName) {
+        state.hostName = data.hostName;
+        partnerNameText.textContent = data.hostName;
+      }
+      updateUserUI();
+
+      state.isApplyingRemote = true;
+      if (data.episodeIndex !== undefined && data.episodeIndex !== state.currentEpisodeIndex) {
+        loadEpisode(data.episodeIndex, !data.isPaused);
+      }
+      if (data.currentTime !== undefined) {
+        video.currentTime = data.currentTime;
+        state.lastKnownHostTime = data.currentTime;
+      }
+      if (data.isPaused) {
+        video.pause();
+        state.lastKnownHostPaused = true;
+      } else {
+        video.play().catch(() => {});
+        state.lastKnownHostPaused = false;
+      }
+      setTimeout(() => { state.isApplyingRemote = false; }, 300);
+      showToast('⚡ Đã đồng bộ với Chủ phòng');
+      break;
+
+    // Direct playback commands from Host
+    case 'HOST_ACTION':
+      if (state.isHost) return; // Host ignores remote actions
+
+      state.isApplyingRemote = true;
+      state.lastKnownHostTime = data.time;
+
+      if (data.action === 'EPISODE' && data.episodeIndex !== undefined) {
+        loadEpisode(data.episodeIndex, true);
+      } else if (data.action === 'PLAY') {
+        if (Math.abs(video.currentTime - data.time) > 1.0) {
+          video.currentTime = data.time;
         }
-        video.currentTime = data.currentTime || 0;
-      }
-      break;
-
-    case 'SYNC_PLAY':
-      state.ignoreNextSyncEvent = true;
-      if (Math.abs(video.currentTime - data.time) > 1) {
+        video.play().catch(() => {});
+        state.lastKnownHostPaused = false;
+      } else if (data.action === 'PAUSE') {
+        video.currentTime = data.time;
+        video.pause();
+        state.lastKnownHostPaused = true;
+      } else if (data.action === 'SEEK') {
         video.currentTime = data.time;
       }
-      video.play().catch(() => {});
+      setTimeout(() => { state.isApplyingRemote = false; }, 300);
       break;
 
-    case 'SYNC_PAUSE':
-      state.ignoreNextSyncEvent = true;
-      if (Math.abs(video.currentTime - data.time) > 1) {
-        video.currentTime = data.time;
+    // Periodic heartbeat from Host
+    case 'HOST_HEARTBEAT':
+      if (state.isHost) return;
+
+      state.lastKnownHostTime = data.time;
+      state.lastKnownHostPaused = data.isPaused;
+
+      // Check episode mismatch
+      if (data.episodeIndex !== undefined && data.episodeIndex !== state.currentEpisodeIndex) {
+        state.isApplyingRemote = true;
+        loadEpisode(data.episodeIndex, !data.isPaused);
+        setTimeout(() => { state.isApplyingRemote = false; }, 300);
+        return;
       }
-      video.pause();
+
+      // Check playback drift: If drift > 1.2s, snap to Host time
+      const drift = Math.abs(video.currentTime - data.time);
+      if (drift > 1.2) {
+        state.isApplyingRemote = true;
+        video.currentTime = data.time;
+        setTimeout(() => { state.isApplyingRemote = false; }, 300);
+      }
+
+      // Check pause mismatch
+      if (video.paused !== data.isPaused) {
+        state.isApplyingRemote = true;
+        if (data.isPaused) video.pause();
+        else video.play().catch(() => {});
+        setTimeout(() => { state.isApplyingRemote = false; }, 300);
+      }
       break;
 
-    case 'SYNC_SEEK':
-      state.ignoreNextSyncEvent = true;
-      video.currentTime = data.time;
-      showToast(`Đồng bộ tua tới: ${formatTime(data.time)}`);
+    // Host transfer
+    case 'TRANSFER_HOST':
+      state.isHost = true;
+      state.hostName = state.selfName;
+      updateUserUI();
+      showToast('👑 Bạn đã được trao quyền Chủ phòng!');
       break;
 
-    case 'SYNC_EPISODE':
-      loadEpisode(data.index, true);
+    case 'CLAIM_HOST_REQUEST':
+      if (state.isHost) {
+        const accept = confirm(data.requesterName + ' muốn nhận quyền Chủ phòng. Bạn có đồng ý trao quyền?');
+        if (accept) {
+          state.isHost = false;
+          state.hostName = data.requesterName;
+          updateUserUI();
+          sendData({ type: 'TRANSFER_HOST' });
+          showToast('👑 Đã chuyển quyền Chủ phòng cho ' + data.requesterName);
+        }
+      }
       break;
 
     case 'MIC_STATUS':
       updatePartnerMicUI(data.isMuted);
       break;
-
-    // ================================================
-    // CORE FEATURE: VIP PARTNER BUFFERING LOGIC
-    // ================================================
-    case 'BUFFERING_STATE':
-      if (state.priorityRole === 'partner' || state.priorityRole === 'both') {
-        if (data.isBuffering) {
-          // Partner's internet is slow/buffering -> FREEZE MY VIDEO TO WAIT!
-          state.isRemoteBuffering = true;
-          video.pause();
-          syncOverlayText.textContent = `Đang đợi ${state.partnerName} tải xong video...`;
-          syncOverlay.classList.add('active');
-          console.log('[Priority Sync] Holding local playback to wait for partner');
-        } else {
-          // Partner finished buffering! Align time and resume together!
-          state.isRemoteBuffering = false;
-          syncOverlay.classList.remove('active');
-          if (data.time) {
-            video.currentTime = data.time;
-          }
-          video.play().catch(() => {});
-          showToast(`⚡ ${state.partnerName} đã tải xong, tiếp tục xem!`);
-        }
-      }
-      break;
-
-    case 'HEARTBEAT':
-      // Drift Correction (Smooth micro-adjustment)
-      if (!video.paused && !state.isRemoteBuffering) {
-        const drift = video.currentTime - data.time;
-        // If my video is running ahead of Partner by > 1.2s in Partner Priority mode:
-        if (state.priorityRole === 'partner' && drift > 1.2) {
-          console.log('[Priority Sync] Self is running ahead by', drift.toFixed(2), 's. Slowing down...');
-          video.currentTime = data.time;
-        }
-      }
-      break;
   }
 }
 
 // ==========================================
-// 4. VOICE CHAT & MICROPHONE HANDLING
+// 4. DISCORD VOICE CHAT (P2P WEBRTC)
 // ==========================================
 async function toggleMicrophone() {
   if (state.isMicMuted) {
-    // Request mic access
     try {
       if (!state.localStream) {
         state.localStream = await navigator.mediaDevices.getUserMedia({
@@ -802,44 +859,42 @@ async function toggleMicrophone() {
         });
         setupLocalAudioAnalyser(state.localStream);
 
-        // Call or update partner with the new voice stream
         if (state.conn && state.conn.peer) {
-          callPartner(state.conn.peer);
+          callMember(state.conn.peer);
         }
       } else {
         state.localStream.getAudioTracks().forEach(track => track.enabled = true);
       }
 
       state.isMicMuted = false;
-      btnToggleMic.classList.add('unmuted');
+      btnToggleMic.classList.remove('muted');
       btnToggleMic.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-      selfMicBadge.classList.add('mic-on');
+      selfMicBadge.classList.remove('muted');
       selfMicBadge.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-      selfState.textContent = 'Mic đang bật';
+      selfStatusText.textContent = 'Mic đang bật';
       sendData({ type: 'MIC_STATUS', isMuted: false });
       showToast('🎤 Đã bật Mic');
     } catch (err) {
       console.error('Microphone error:', err);
-      alert('Không thể mở micro: Vui lòng cho phép quyền truy cập micro trong trình duyệt.');
+      alert('Vui lòng cho phép quyền truy cập Micro trên trình duyệt.');
     }
   } else {
-    // Mute mic
     if (state.localStream) {
       state.localStream.getAudioTracks().forEach(track => track.enabled = false);
     }
     state.isMicMuted = true;
-    btnToggleMic.classList.remove('unmuted');
+    btnToggleMic.classList.add('muted');
     btnToggleMic.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-    selfMicBadge.classList.remove('mic-on');
+    selfMicBadge.classList.add('muted');
     selfMicBadge.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-    selfRing.classList.remove('speaking');
-    selfState.textContent = 'Mic đã tắt';
+    selfAvatarBox.classList.remove('speaking');
+    selfStatusText.textContent = 'Mic đã tắt';
     sendData({ type: 'MIC_STATUS', isMuted: true });
     showToast('🔇 Đã tắt Mic');
   }
 }
 
-function callPartner(remotePeerId) {
+function callMember(remotePeerId) {
   if (!state.peer) return;
   const outgoingCall = state.peer.call(remotePeerId, state.localStream || createSilentAudioStream());
   state.call = outgoingCall;
@@ -853,18 +908,17 @@ function callPartner(remotePeerId) {
 function updatePartnerMicUI(isMuted) {
   state.partnerMicMuted = isMuted;
   if (!isMuted) {
-    partnerMicBadge.classList.add('mic-on');
+    partnerMicBadge.classList.remove('muted');
     partnerMicBadge.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-    partnerState.textContent = 'Mic đang bật';
+    partnerStatusText.textContent = 'Mic đang bật';
   } else {
-    partnerMicBadge.classList.remove('mic-on');
+    partnerMicBadge.classList.add('muted');
     partnerMicBadge.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-    partnerRing.classList.remove('speaking');
-    partnerState.textContent = 'Mic đã tắt';
+    partnerAvatarBox.classList.remove('speaking');
+    partnerStatusText.textContent = 'Mic đã tắt';
   }
 }
 
-// Create fallback silent audio stream so WebRTC voice connection can handshake
 function createSilentAudioStream() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const osc = ctx.createOscillator();
@@ -875,7 +929,7 @@ function createSilentAudioStream() {
   return dst.stream;
 }
 
-// Real-time Voice Volume Detection (Visualizer Pulse Wave)
+// Discord Audio Visualizer: Green Speaking Pulse Ring!
 function setupLocalAudioAnalyser(stream) {
   if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const source = state.audioCtx.createMediaStreamSource(stream);
@@ -892,7 +946,7 @@ function setupRemoteAudioAnalyser(stream) {
     state.remoteAnalyser.fftSize = 64;
     source.connect(state.remoteAnalyser);
   } catch (e) {
-    console.warn('AudioContext remote source error:', e);
+    console.warn('AudioContext error:', e);
   }
 }
 
@@ -901,30 +955,30 @@ function setupAudioVisualizerLoop() {
   const remoteData = new Uint8Array(32);
 
   function checkVolume() {
-    // Check self volume
+    // Check self speaking
     if (state.localAnalyser && !state.isMicMuted) {
       state.localAnalyser.getByteFrequencyData(localData);
       const avg = localData.reduce((a, b) => a + b, 0) / localData.length;
       if (avg > 15) {
-        selfRing.classList.add('speaking');
+        selfAvatarBox.classList.add('speaking');
       } else {
-        selfRing.classList.remove('speaking');
+        selfAvatarBox.classList.remove('speaking');
       }
     } else {
-      selfRing.classList.remove('speaking');
+      selfAvatarBox.classList.remove('speaking');
     }
 
-    // Check partner volume
+    // Check remote speaking
     if (state.remoteAnalyser && !state.partnerMicMuted) {
       state.remoteAnalyser.getByteFrequencyData(remoteData);
       const avg = remoteData.reduce((a, b) => a + b, 0) / remoteData.length;
       if (avg > 15) {
-        partnerRing.classList.add('speaking');
+        partnerAvatarBox.classList.add('speaking');
       } else {
-        partnerRing.classList.remove('speaking');
+        partnerAvatarBox.classList.remove('speaking');
       }
     } else {
-      partnerRing.classList.remove('speaking');
+      partnerAvatarBox.classList.remove('speaking');
     }
 
     requestAnimationFrame(checkVolume);
@@ -934,76 +988,125 @@ function setupAudioVisualizerLoop() {
 }
 
 // ==========================================
-// 5. PLAYLIST, SETTINGS & EVENT LISTENERS
+// 5. PLAYLIST, SETTINGS & CONTROLS
 // ==========================================
-function renderPlaylist() {
-  playlistItems.innerHTML = '';
+function renderEpisodes() {
+  episodesList.innerHTML = '';
   state.episodes.forEach((ep, idx) => {
     const item = document.createElement('div');
-    item.className = `playlist-item ${idx === state.currentEpisodeIndex ? 'active' : ''}`;
+    item.className = 'episode-channel ' + (idx === state.currentEpisodeIndex ? 'active' : '');
     item.innerHTML = `
-      <div class="playlist-item-left">
-        <span class="episode-num">${idx + 1}</span>
-        <span class="episode-name">${ep.title}</span>
+      <div class="episode-channel-left">
+        <i class="fa-solid fa-play episode-icon"></i>
+        <span class="episode-label">${ep.title}</span>
       </div>
-      <span class="episode-badge">${ep.quality || 'HD'}</span>
+      <span class="episode-res">1080p</span>
     `;
     item.addEventListener('click', () => {
+      if (!state.isHost) {
+        showToast('⚠️ Chỉ Chủ phòng mới có quyền đổi tập phim!');
+        return;
+      }
       loadEpisode(idx, true);
-      sendData({ type: 'SYNC_EPISODE', index: idx });
-      playlistDrawer.classList.remove('open');
+      sendData({
+        type: 'HOST_ACTION',
+        action: 'EPISODE',
+        episodeIndex: idx,
+        time: 0
+      });
+      episodesDrawer.classList.remove('open');
     });
-    playlistItems.appendChild(item);
+    episodesList.appendChild(item);
   });
 }
 
 function setupEventListeners() {
   // Play/Pause button
   btnPlayPause.addEventListener('click', () => {
+    if (!state.isHost) {
+      showToast('⚠️ Bạn đang ở chế độ xem theo Chủ phòng!');
+      return;
+    }
     if (video.paused) video.play();
     else video.pause();
   });
 
-  // Video click toggle
   video.addEventListener('click', () => {
+    if (!state.isHost) {
+      showToast('⚠️ Bạn đang ở chế độ xem theo Chủ phòng!');
+      return;
+    }
     if (video.paused) video.play();
     else video.pause();
   });
 
-  // Rewind & Forward
+  // Rewind / Forward (Host only)
   btnRewind.addEventListener('click', () => {
+    if (!state.isHost) {
+      showToast('⚠️ Chỉ Chủ phòng mới có quyền tua phim!');
+      return;
+    }
     video.currentTime = Math.max(0, video.currentTime - 10);
-    sendData({ type: 'SYNC_SEEK', time: video.currentTime });
+    sendData({
+      type: 'HOST_ACTION',
+      action: 'SEEK',
+      time: video.currentTime
+    });
     showActionHud('fa-rotate-left', '-10s');
   });
 
   btnForward.addEventListener('click', () => {
+    if (!state.isHost) {
+      showToast('⚠️ Chỉ Chủ phòng mới có quyền tua phim!');
+      return;
+    }
     video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-    sendData({ type: 'SYNC_SEEK', time: video.currentTime });
+    sendData({
+      type: 'HOST_ACTION',
+      action: 'SEEK',
+      time: video.currentTime
+    });
     showActionHud('fa-rotate-right', '+10s');
   });
 
   // Progress Bar Seek
-  progressContainer.addEventListener('click', (e) => {
-    const rect = progressContainer.getBoundingClientRect();
+  progressWrap.addEventListener('click', (e) => {
+    if (!state.isHost) {
+      showToast('⚠️ Chỉ Chủ phòng mới có quyền tua phim!');
+      return;
+    }
+    const rect = progressWrap.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
     const seekTime = pos * (video.duration || 0);
     video.currentTime = seekTime;
-    sendData({ type: 'SYNC_SEEK', time: seekTime });
+    sendData({
+      type: 'HOST_ACTION',
+      action: 'SEEK',
+      time: seekTime
+    });
   });
 
-  // Progress Bar Hover Preview
-  progressContainer.addEventListener('mousemove', (e) => {
-    const rect = progressContainer.getBoundingClientRect();
+  progressWrap.addEventListener('mousemove', (e) => {
+    const rect = progressWrap.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
     const hoverTime = pos * (video.duration || 0);
-    progressHover.style.display = 'block';
-    progressHover.style.left = `${e.clientX - rect.left}px`;
-    progressHover.textContent = formatTime(hoverTime);
+    progressTooltip.style.display = 'block';
+    progressTooltip.style.left = (e.clientX - rect.left) + 'px';
+    progressTooltip.textContent = formatTime(hoverTime);
   });
 
-  progressContainer.addEventListener('mouseleave', () => {
-    progressHover.style.display = 'none';
+  progressWrap.addEventListener('mouseleave', () => {
+    progressTooltip.style.display = 'none';
+  });
+
+  // Catchup Button for Guests
+  btnCatchup.addEventListener('click', () => {
+    if (state.lastKnownHostTime !== undefined) {
+      video.currentTime = state.lastKnownHostTime;
+      if (state.lastKnownHostPaused) video.pause();
+      else video.play().catch(() => {});
+      showToast('⚡ Đã bắt kịp thời gian của Chủ phòng!');
+    }
   });
 
   // Volume
@@ -1027,13 +1130,13 @@ function setupEventListeners() {
     }
   }
 
-  // Playback Speed
-  speedMenu.querySelectorAll('.dropdown-item').forEach(item => {
+  // Speed
+  speedMenu.querySelectorAll('.speed-option').forEach(item => {
     item.addEventListener('click', () => {
       const speed = parseFloat(item.dataset.speed);
       video.playbackRate = speed;
-      btnSpeed.textContent = `${speed}x`;
-      speedMenu.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+      btnSpeed.textContent = speed + 'x';
+      speedMenu.querySelectorAll('.speed-option').forEach(el => el.classList.remove('active'));
       item.classList.add('active');
     });
   });
@@ -1041,7 +1144,7 @@ function setupEventListeners() {
   // Fullscreen & PiP
   btnFullscreen.addEventListener('click', () => {
     if (!document.fullscreenElement) {
-      videoWrapper.requestFullscreen().catch(() => {});
+      playerContainer.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
@@ -1054,54 +1157,116 @@ function setupEventListeners() {
       } else {
         await document.exitPictureInPicture();
       }
-    } catch (err) {
-      console.warn(err);
+    } catch (e) {}
+  });
+
+  // Mic Toggle
+  btnToggleMic.addEventListener('click', toggleMicrophone);
+
+  // Transfer Host Key button
+  btnTransferHost.addEventListener('click', () => {
+    if (state.isHost && state.conn) {
+      const ok = confirm('Bạn có muốn chuyển quyền Chủ phòng cho thành viên?');
+      if (ok) {
+        state.isHost = false;
+        state.hostName = state.partnerName;
+        updateUserUI();
+        sendData({ type: 'TRANSFER_HOST' });
+        showToast('👑 Đã trao quyền Chủ phòng cho ' + state.partnerName);
+      }
     }
   });
 
-  // Mic Toggle Button
-  btnToggleMic.addEventListener('click', toggleMicrophone);
+  // Claim Host Key (Key icon)
+  btnClaimHost.addEventListener('click', () => {
+    if (!state.isHost) {
+      sendData({
+        type: 'CLAIM_HOST_REQUEST',
+        requesterName: state.selfName
+      });
+      showToast('📩 Đã gửi yêu cầu nhận quyền Chủ phòng...');
+    } else {
+      showToast('👑 Bạn đang là Chủ phòng!');
+    }
+  });
 
-  // Share / Copy Room Invite
+  // Share room URL
   btnShareRoom.addEventListener('click', () => {
-    const shareUrl = window.location.href;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      showToast('📋 Đã sao chép link phòng! Gửi ngay cho người ấy.');
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('📋 Đã sao chép link mời phòng xem!');
     }).catch(() => {
-      prompt('Sao chép đường link này để gửi cho người ấy:', shareUrl);
+      prompt('Link phòng:', url);
     });
   });
 
-  // Playlist Drawer
+  // Drawer
   btnTogglePlaylist.addEventListener('click', () => {
-    playlistDrawer.classList.toggle('open');
+    episodesDrawer.classList.toggle('open');
   });
-  btnClosePlaylist.addEventListener('click', () => {
-    playlistDrawer.classList.remove('open');
+  btnCloseDrawer.addEventListener('click', () => {
+    episodesDrawer.classList.remove('open');
   });
 
-  // Settings Modal
-  btnSettings.addEventListener('click', openSettings);
+  // Settings
+  btnSettings.addEventListener('click', () => {
+    inputSelfName.value = state.selfName;
+    inputVideoSources.value = state.episodes.map(ep => ep.title + ' | ' + ep.url).join('\n');
+    settingsModal.classList.add('open');
+  });
   btnCloseSettings.addEventListener('click', () => settingsModal.classList.remove('open'));
-  btnSaveSettings.addEventListener('click', saveSettings);
-  btnResetSettings.addEventListener('click', resetSettings);
 
-  // Keyboard Shortcuts
+  btnSaveSettings.addEventListener('click', () => {
+    state.selfName = inputSelfName.value.trim() || 'Người xem';
+    localStorage.setItem('cine_self_name', state.selfName);
+    updateUserUI();
+
+    const lines = inputVideoSources.value.split('\n').filter(l => l.trim().length > 0);
+    const newEps = [];
+    lines.forEach((line, i) => {
+      const parts = line.split('|');
+      if (parts.length >= 2) {
+        newEps.push({
+          title: parts[0].trim(),
+          url: parts[1].trim(),
+          quality: '1080p FHD'
+        });
+      }
+    });
+
+    if (newEps.length > 0) {
+      state.episodes = newEps;
+      localStorage.setItem('cine_episodes', JSON.stringify(newEps));
+      renderEpisodes();
+      loadEpisode(0, false);
+    }
+
+    settingsModal.classList.remove('open');
+    showToast('💾 Đã lưu cài đặt phòng thành công!');
+  });
+
+  btnResetSettings.addEventListener('click', () => {
+    localStorage.removeItem('cine_episodes');
+    state.episodes = DEFAULT_EPISODES;
+    renderEpisodes();
+    loadEpisode(0, false);
+    settingsModal.classList.remove('open');
+    showToast('🔄 Đã khôi phục 47 tập mặc định');
+  });
+
+  // Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.code === 'Space') {
       e.preventDefault();
-      if (video.paused) video.play();
-      else video.pause();
+      btnPlayPause.click();
     } else if (e.code === 'ArrowLeft') {
       e.preventDefault();
-      video.currentTime = Math.max(0, video.currentTime - 10);
-      sendData({ type: 'SYNC_SEEK', time: video.currentTime });
+      btnRewind.click();
     } else if (e.code === 'ArrowRight') {
       e.preventDefault();
-      video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-      sendData({ type: 'SYNC_SEEK', time: video.currentTime });
+      btnForward.click();
     } else if (e.key.toLowerCase() === 'f') {
       e.preventDefault();
       btnFullscreen.click();
@@ -1112,77 +1277,19 @@ function setupEventListeners() {
   });
 }
 
-function openSettings() {
-  inputSelfName.value = state.selfName;
-  inputPartnerName.value = state.partnerName;
-  selectPriorityRole.value = state.priorityRole;
-
-  inputVideoSources.value = state.episodes.map(ep => `${ep.title}|${ep.url}`).join('\n');
-  settingsModal.classList.add('open');
-}
-
-function saveSettings() {
-  state.selfName = inputSelfName.value.trim() || 'Anh';
-  state.partnerName = inputPartnerName.value.trim() || 'Em';
-  state.priorityRole = selectPriorityRole.value;
-
-  localStorage.setItem('cine_self_name', state.selfName);
-  localStorage.setItem('cine_partner_name', state.partnerName);
-  localStorage.setItem('cine_priority_role', state.priorityRole);
-
-  // Parse episodes
-  const lines = inputVideoSources.value.split('\n').filter(l => l.trim().length > 0);
-  const newEpisodes = [];
-  lines.forEach((line, i) => {
-    const parts = line.split('|');
-    if (parts.length >= 2) {
-      newEpisodes.push({
-        title: parts[0].trim(),
-        url: parts[1].trim(),
-        quality: 'Custom'
-      });
-    } else {
-      newEpisodes.push({
-        title: `Tập ${i + 1}`,
-        url: parts[0].trim(),
-        quality: 'Custom'
-      });
-    }
-  });
-
-  if (newEpisodes.length > 0) {
-    state.episodes = newEpisodes;
-    localStorage.setItem('cine_episodes', JSON.stringify(newEpisodes));
-    renderPlaylist();
-    loadEpisode(0, false);
-  }
-
-  updateProfileUI();
-  settingsModal.classList.remove('open');
-  showToast('💾 Đã lưu cài đặt thành công!');
-}
-
-function resetSettings() {
-  localStorage.removeItem('cine_episodes');
-  state.episodes = DEFAULT_EPISODES;
-  renderPlaylist();
-  loadEpisode(0, false);
-  inputVideoSources.value = state.episodes.map(ep => `${ep.title}|${ep.url}`).join('\n');
-  showToast('🔄 Đã khôi phục danh sách tập mặc định');
-}
-
 function showToast(msg) {
-  const toastBox = document.getElementById('toastBox');
+  const toastStack = document.getElementById('toastStack');
   const toast = document.createElement('div');
   toast.className = 'toast';
-  toast.innerHTML = `<i class="fa-solid fa-bell"></i> <span>${msg}</span>`;
-  toastBox.appendChild(toast);
+  toast.innerHTML = '<i class="fa-solid fa-bell"></i> <span>' + msg + '</span>';
+  toastStack.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-10px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+    toast.style.transform = 'translateY(-8px)';
+    setTimeout(() => toast.remove(), 250);
+  }, 3000);
 }
 
-// Start application
+// Start
 window.addEventListener('DOMContentLoaded', init);
+

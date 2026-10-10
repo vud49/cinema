@@ -3,233 +3,267 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cinema Together - Phòng Xem Phim Riêng Tư</title>
+  <title>CineSync - Watch Party Platform</title>
+  <!-- Discord Design System Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=2.1">
-  <!-- HLS.js for m3u8 streaming & PeerJS for free P2P Voice and Sync -->
+  <link rel="stylesheet" href="style.css?v=3.0">
+  <!-- HLS.js for 1080p stream & PeerJS for P2P Voice and Host Sync -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
-  <!-- Top Navigation Bar -->
-  <header class="top-nav">
-    <div class="nav-left">
-      <div class="logo">
-        <i class="fa-solid fa-film"></i>
-        <span>CINE<span class="highlight">SYNC</span></span>
+  <!-- Discord Top Navigation Bar -->
+  <header class="discord-header">
+    <div class="header-left">
+      <div class="discord-brand">
+        <i class="fa-solid fa-play-circle brand-icon"></i>
+        <span class="brand-text">CINE<span class="brand-accent">PARTY</span></span>
       </div>
-      <div class="movie-info">
-        <h1 id="movieTitle">Tập 1: Lan Hương Như Cố</h1>
-        <span class="status-badge" id="streamQuality">Full HD 1080p</span>
+      <div class="channel-separator"></div>
+      <div class="channel-title">
+        <i class="fa-solid fa-film channel-hash"></i>
+        <span id="movieTitle">Tập 1: Lan Hương Như Cố</span>
+        <span class="badge-quality" id="streamQuality">1080p FHD</span>
       </div>
     </div>
 
-    <div class="nav-right">
-      <!-- Priority Mode Indicator -->
-      <div class="priority-badge" id="priorityBadge" title="Chế độ ưu tiên đồng bộ">
-        <i class="fa-solid fa-crown"></i>
-        <span>Ưu tiên: <strong id="priorityName">Bạn gái</strong></span>
+    <div class="header-right">
+      <!-- Host Authority Key Badge -->
+      <div class="host-pill" id="hostPill" title="Chủ phòng nắm quyền điều khiển phát video">
+        <i class="fa-solid fa-crown host-icon"></i>
+        <span>Chủ phòng: <strong id="hostNameDisplay">Bạn</strong></span>
       </div>
 
-      <!-- Room Connect Status & Invite Button -->
-      <div class="room-pill">
+      <!-- Room Connection Status -->
+      <div class="status-pill" id="statusPill">
         <span class="conn-dot" id="connDot"></span>
-        <span id="connStatus">Đang kết nối...</span>
+        <span id="connStatusText">Phòng riêng</span>
       </div>
-      <button class="btn btn-secondary" id="btnShareRoom" title="Sao chép liên kết phòng">
-        <i class="fa-solid fa-link"></i>
-        <span>Mời bạn</span>
+
+      <!-- Invite Button -->
+      <button class="btn btn-discord-secondary" id="btnShareRoom" title="Sao chép link mời bạn vào phòng">
+        <i class="fa-solid fa-user-plus"></i>
+        <span>Mời bạn bè</span>
       </button>
 
+      <!-- Episode Drawer Toggle -->
       <button class="btn btn-icon" id="btnTogglePlaylist" title="Danh sách tập">
         <i class="fa-solid fa-list-ul"></i>
       </button>
 
-      <button class="btn btn-icon" id="btnSettings" title="Cài đặt phim">
+      <!-- Settings -->
+      <button class="btn btn-icon" id="btnSettings" title="Cài đặt phòng">
         <i class="fa-solid fa-gear"></i>
       </button>
     </div>
   </header>
 
-  <!-- Main Stage -->
-  <main class="cinema-stage">
-    <div class="video-wrapper" id="videoWrapper">
-      <!-- Video Element -->
-      <video id="videoPlayer" playsinline preload="auto"></video>
+  <!-- Main Discord Layout -->
+  <div class="main-layout">
+    <!-- Center Video Stage -->
+    <main class="theater-stage">
+      <div class="player-container" id="playerContainer">
+        <!-- Video Player -->
+        <video id="videoPlayer" playsinline preload="auto"></video>
 
-      <!-- Waiting / Buffering Sync Overlay (Priority Mode) -->
-      <div class="sync-overlay" id="syncOverlay">
-        <div class="sync-spinner"></div>
-        <div class="sync-text" id="syncOverlayText">Đang đợi người ấy tải xong video...</div>
-        <div class="sync-sub">Phim sẽ tự động tiếp tục khi cả hai sẵn sàng</div>
-      </div>
-
-      <!-- Quick Action Overlay Notification (Play/Pause/Seek indicators) -->
-      <div class="action-hud" id="actionHud">
-        <i class="fa-solid fa-play" id="actionHudIcon"></i>
-        <span id="actionHudText">Phát</span>
-      </div>
-
-      <!-- Video Controls Overlay -->
-      <div class="custom-controls" id="customControls">
-        <!-- Progress Bar -->
-        <div class="progress-container" id="progressContainer">
-          <div class="progress-buffered" id="bufferedBar"></div>
-          <div class="progress-watched" id="progressBar"></div>
-          <div class="progress-hover-time" id="progressHover">00:00</div>
+        <!-- Guest Control Notice Banner (When non-host watches) -->
+        <div class="guest-sync-banner" id="guestSyncBanner">
+          <i class="fa-solid fa-lock"></i>
+          <span>Bạn đang xem theo Chủ phòng. Chỉ Chủ phòng mới có quyền tua/dừng phim.</span>
+          <button class="btn-catchup" id="btnCatchup">Bắt kịp Chủ phòng</button>
         </div>
 
-        <div class="controls-bar">
-          <div class="ctrl-left">
-            <button class="ctrl-btn" id="btnPlayPause" title="Phát/Tạm dừng (Space)">
-              <i class="fa-solid fa-play"></i>
-            </button>
-            <button class="ctrl-btn" id="btnRewind" title="Tua lại 10s (←)">
-              <i class="fa-solid fa-rotate-left"></i>
-              <span class="seek-label">10s</span>
-            </button>
-            <button class="ctrl-btn" id="btnForward" title="Tua tới 10s (→)">
-              <i class="fa-solid fa-rotate-right"></i>
-              <span class="seek-label">10s</span>
-            </button>
-            <div class="time-display">
-              <span id="curTime">00:00</span> / <span id="durTime">00:00</span>
-            </div>
+        <!-- Action HUD Indicator (Flash Icon) -->
+        <div class="action-hud" id="actionHud">
+          <i class="fa-solid fa-play" id="actionHudIcon"></i>
+          <span id="actionHudText">Phát</span>
+        </div>
+
+        <!-- Custom Video Controls -->
+        <div class="video-controls" id="videoControls">
+          <!-- Progress Bar -->
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-buffer" id="bufferedBar"></div>
+            <div class="progress-play" id="progressBar"></div>
+            <div class="progress-tooltip" id="progressTooltip">00:00</div>
           </div>
 
-          <div class="ctrl-right">
-            <!-- Volume Control -->
-            <div class="volume-box">
-              <button class="ctrl-btn" id="btnVol">
-                <i class="fa-solid fa-volume-high"></i>
+          <div class="controls-row">
+            <div class="ctrl-group-left">
+              <button class="ctrl-btn" id="btnPlayPause" title="Phát/Dừng (Space)">
+                <i class="fa-solid fa-play"></i>
               </button>
-              <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.05" value="1">
-            </div>
-
-            <!-- Speed selector -->
-            <div class="dropdown">
-              <button class="ctrl-btn text-btn" id="btnSpeed">1x</button>
-              <div class="dropdown-menu" id="speedMenu">
-                <div class="dropdown-item" data-speed="0.75">0.75x</div>
-                <div class="dropdown-item active" data-speed="1">1.0x (Chuẩn)</div>
-                <div class="dropdown-item" data-speed="1.25">1.25x</div>
-                <div class="dropdown-item" data-speed="1.5">1.5x</div>
-                <div class="dropdown-item" data-speed="2">2.0x</div>
+              <button class="ctrl-btn" id="btnRewind" title="Lùi 10s (←)">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="seek-tag">10</span>
+              </button>
+              <button class="ctrl-btn" id="btnForward" title="Tiến 10s (→)">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="seek-tag">10</span>
+              </button>
+              <div class="time-label">
+                <span id="curTime">00:00</span> / <span id="durTime">00:00</span>
               </div>
             </div>
 
-            <button class="ctrl-btn" id="btnPip" title="Hình trong hình (PiP)">
-              <i class="fa-regular fa-clone"></i>
-            </button>
+            <div class="ctrl-group-right">
+              <!-- Volume Box -->
+              <div class="volume-container">
+                <button class="ctrl-btn" id="btnVol">
+                  <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <input type="range" class="volume-slider" id="volSlider" min="0" max="1" step="0.05" value="1">
+              </div>
 
-            <button class="ctrl-btn" id="btnFullscreen" title="Toàn màn hình (F)">
-              <i class="fa-solid fa-expand"></i>
-            </button>
+              <!-- Speed Selector -->
+              <div class="speed-dropdown">
+                <button class="ctrl-btn speed-btn" id="btnSpeed">1x</button>
+                <div class="speed-menu" id="speedMenu">
+                  <div class="speed-option" data-speed="0.75">0.75x</div>
+                  <div class="speed-option active" data-speed="1">1.0x Chuẩn</div>
+                  <div class="speed-option" data-speed="1.25">1.25x</div>
+                  <div class="speed-option" data-speed="1.5">1.5x</div>
+                  <div class="speed-option" data-speed="2">2.0x</div>
+                </div>
+              </div>
+
+              <button class="ctrl-btn" id="btnPip" title="Picture in Picture">
+                <i class="fa-regular fa-clone"></i>
+              </button>
+
+              <button class="ctrl-btn" id="btnFullscreen" title="Toàn màn hình (F)">
+                <i class="fa-solid fa-expand"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
-    <!-- Floating Voice & Partner Dock -->
-    <div class="co-watch-dock">
-      <!-- Self Profile -->
-      <div class="peer-card self-card" id="selfCard">
-        <div class="avatar-ring" id="selfRing">
-          <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=user1" alt="Avatar Bạn" id="selfAvatar">
-          <span class="mic-bubble" id="selfMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
+    <!-- Right Sidebar: Discord Voice Channel & Members Panel -->
+    <aside class="discord-sidebar">
+      <!-- Voice Channel Header -->
+      <div class="voice-channel-header">
+        <div class="voice-title">
+          <i class="fa-solid fa-volume-high voice-icon"></i>
+          <span>KÊNH ĐÀM THOẠI</span>
         </div>
-        <div class="peer-details">
-          <div class="peer-name">
-            <span id="selfNameDisplay">Bạn</span>
-            <span class="role-tag" id="selfRoleTag">Ưu tiên</span>
+        <span class="voice-user-count" id="userCount">1 người</span>
+      </div>
+
+      <!-- Members in Room List -->
+      <div class="members-list" id="membersList">
+        <!-- Self Card -->
+        <div class="member-card" id="selfCard">
+          <div class="avatar-box" id="selfAvatarBox">
+            <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=user1" alt="Avatar Bạn" id="selfAvatar">
+            <span class="mic-badge muted" id="selfMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
           </div>
-          <div class="peer-state" id="selfState">Mic đã tắt</div>
-        </div>
-        <button class="btn-mic-toggle" id="btnToggleMic" title="Bật/Tắt Mic">
-          <i class="fa-solid fa-microphone-slash"></i>
-        </button>
-      </div>
-
-      <!-- Sync Divider -->
-      <div class="dock-divider">
-        <i class="fa-solid fa-heart heartbeat-icon" title="Đang đồng bộ xem chung"></i>
-      </div>
-
-      <!-- Partner Profile -->
-      <div class="peer-card partner-card" id="partnerCard">
-        <div class="avatar-ring" id="partnerRing">
-          <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=partner" alt="Avatar Người Ấy" id="partnerAvatar">
-          <span class="mic-bubble" id="partnerMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
-        </div>
-        <div class="peer-details">
-          <div class="peer-name">
-            <span id="partnerNameDisplay">Chờ kết nối...</span>
-            <span class="role-tag" id="partnerRoleTag">Ưu tiên</span>
+          <div class="member-info">
+            <div class="member-name-row">
+              <span class="member-name" id="selfNameText">Bạn</span>
+              <span class="role-badge host-role" id="selfRoleBadge">CHỦ PHÒNG</span>
+            </div>
+            <div class="member-status" id="selfStatusText">Mic đã tắt</div>
           </div>
-          <div class="peer-state" id="partnerState">Gửi link để mời</div>
         </div>
-        <div class="voice-audio-element">
-          <!-- Remote Audio Output for WebRTC Voice -->
-          <audio id="remoteAudio" autoplay></audio>
+
+        <!-- Remote Peer / Member Card -->
+        <div class="member-card waiting" id="partnerCard">
+          <div class="avatar-box" id="partnerAvatarBox">
+            <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=member2" alt="Avatar Thành viên" id="partnerAvatar">
+            <span class="mic-badge muted" id="partnerMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
+          </div>
+          <div class="member-info">
+            <div class="member-name-row">
+              <span class="member-name" id="partnerNameText">Chờ thành viên...</span>
+              <span class="role-badge member-role" id="partnerRoleBadge" style="display:none;">THÀNH VIÊN</span>
+            </div>
+            <div class="member-status" id="partnerStatusText">Gửi link để mời vào phòng</div>
+          </div>
+          <!-- Host Transfer Button (Shown only to current host) -->
+          <button class="btn-transfer-host" id="btnTransferHost" title="Chuyển quyền Chủ phòng cho người này" style="display:none;">
+            <i class="fa-solid fa-crown"></i>
+          </button>
         </div>
       </div>
-    </div>
-  </main>
 
-  <!-- Side Drawer: Episode Playlist -->
-  <aside class="playlist-drawer" id="playlistDrawer">
-    <div class="drawer-header">
-      <h3><i class="fa-solid fa-list"></i> Danh sách tập phim</h3>
-      <button class="btn-close" id="btnClosePlaylist"><i class="fa-solid fa-xmark"></i></button>
+      <!-- Discord Voice Connected Control Panel (Bottom Dock) -->
+      <div class="voice-footer">
+        <div class="voice-conn-status">
+          <i class="fa-solid fa-signal-perfect conn-icon"></i>
+          <div class="conn-text-wrap">
+            <span class="conn-label">Đã kết nối thoại</span>
+            <span class="conn-ping" id="pingLabel">P2P Low Latency</span>
+          </div>
+        </div>
+        <div class="voice-action-buttons">
+          <button class="btn-voice-toggle muted" id="btnToggleMic" title="Bật/Tắt Mic (Phím M)">
+            <i class="fa-solid fa-microphone-slash"></i>
+          </button>
+          <button class="btn-voice-toggle" id="btnClaimHost" title="Lấy quyền Chủ phòng">
+            <i class="fa-solid fa-key"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remote Audio Output for WebRTC Voice -->
+      <audio id="remoteAudio" autoplay></audio>
+    </aside>
+  </div>
+
+  <!-- Side Drawer: Episode Channels (Discord Channel List Style) -->
+  <aside class="episodes-drawer" id="episodesDrawer">
+    <div class="drawer-top">
+      <div class="drawer-title">
+        <i class="fa-solid fa-film"></i>
+        <span>KÊNH TẬP PHIM (47 TẬP)</span>
+      </div>
+      <button class="btn-close-drawer" id="btnCloseDrawer"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <div class="playlist-list" id="playlistItems">
+    <div class="episodes-container" id="episodesList">
       <!-- Injected via JavaScript -->
     </div>
   </aside>
 
-  <!-- Settings Modal (Allows custom Bunny.net m3u8 URLs or names) -->
+  <!-- Settings Modal (Discord Form Style) -->
   <div class="modal-backdrop" id="settingsModal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3><i class="fa-solid fa-sliders"></i> Cài đặt Phim & Đồng bộ</h3>
-        <button class="btn-close" id="btnCloseSettings"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-window">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-sliders"></i> Cài đặt Phòng Xem Phim</h3>
+        <button class="btn-close-drawer" id="btnCloseSettings"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Tên của bạn:</label>
-          <input type="text" id="inputSelfName" value="Anh" placeholder="Nhập tên của bạn">
+      <div class="modal-content">
+        <div class="form-item">
+          <label>Tên hiển thị của bạn:</label>
+          <input type="text" id="inputSelfName" value="Người xem 1" placeholder="Nhập nickname của bạn">
         </div>
-        <div class="form-group">
-          <label>Tên người cùng xem:</label>
-          <input type="text" id="inputPartnerName" value="Em" placeholder="Nhập tên người ấy">
+        <div class="form-item">
+          <label>Quyền điều khiển phòng:</label>
+          <div class="info-callout">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Chỉ <strong>Chủ phòng</strong> nắm quyền Play/Pause/Tua. Mọi thành viên khác tự động đồng bộ theo Host để tránh giật lag hay tranh chấp tua video.</span>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Ai là người được ưu tiên?</label>
-          <select id="selectPriorityRole">
-            <option value="partner" selected>Người ấy (Nếu máy người ấy lag, máy bạn tự dừng chờ)</option>
-            <option value="self">Chính bạn</option>
-            <option value="both">Bình đẳng (Ai lag cũng chờ nhau)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Link Video (HLS `.m3u8` hoặc `.mp4` từ Bunny.net / Cloudflare):</label>
-          <textarea id="inputVideoSources" rows="4" placeholder="Tập 1|https://.../playlist.m3u8&#10;Tập 2|https://.../playlist.m3u8"></textarea>
-          <small class="hint">Định dạng mỗi dòng: [Tên tập]|[Đường dẫn video]</small>
+        <div class="form-item">
+          <label>Nguồn phát (47 tập Lan Hương Như Cố 1080p đã nạp sẵn):</label>
+          <textarea id="inputVideoSources" rows="5"></textarea>
+          <small class="form-hint">Định dạng: [Tên tập] | [Link HLS m3u8 hoặc mp4]</small>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btnResetSettings">Khôi phục mặc định</button>
-        <button class="btn btn-primary" id="btnSaveSettings">Lưu cài đặt</button>
+      <div class="modal-bottom">
+        <button class="btn btn-discord-ghost" id="btnResetSettings">Khôi phục mặc định</button>
+        <button class="btn btn-discord-primary" id="btnSaveSettings">Lưu cài đặt</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div class="toast-box" id="toastBox"></div>
+  <!-- Discord Toast Notification -->
+  <div class="toast-stack" id="toastStack"></div>
 
-  <script src="app.js?v=2.1"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
