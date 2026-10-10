@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cinema Together - Phòng Xem Phim Riêng Tư</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- HLS.js for m3u8 streaming & PeerJS for free P2P Voice and Sync -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="logo">
+        <i class="fa-solid fa-film"></i>
+        <span>CINE<span class="highlight">SYNC</span></span>
+      </div>
+      <div class="movie-info">
+        <h1 id="movieTitle">Tập 1: Khởi Đầu</h1>
+        <span class="status-badge" id="streamQuality">Full HD 1080p</span>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <!-- Priority Mode Indicator -->
+      <div class="priority-badge" id="priorityBadge" title="Chế độ ưu tiên đồng bộ">
+        <i class="fa-solid fa-crown"></i>
+        <span>Ưu tiên: <strong id="priorityName">Bạn gái</strong></span>
+      </div>
+
+      <!-- Room Connect Status & Invite Button -->
+      <div class="room-pill">
+        <span class="conn-dot" id="connDot"></span>
+        <span id="connStatus">Đang kết nối...</span>
+      </div>
+      <button class="btn btn-secondary" id="btnShareRoom" title="Sao chép liên kết phòng">
+        <i class="fa-solid fa-link"></i>
+        <span>Mời bạn</span>
+      </button>
+
+      <button class="btn btn-icon" id="btnTogglePlaylist" title="Danh sách tập">
+        <i class="fa-solid fa-list-ul"></i>
+      </button>
+
+      <button class="btn btn-icon" id="btnSettings" title="Cài đặt phim">
+        <i class="fa-solid fa-gear"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Stage -->
+  <main class="cinema-stage">
+    <div class="video-wrapper" id="videoWrapper">
+      <!-- Video Element -->
+      <video id="videoPlayer" playsinline preload="auto"></video>
+
+      <!-- Waiting / Buffering Sync Overlay (Priority Mode) -->
+      <div class="sync-overlay" id="syncOverlay">
+        <div class="sync-spinner"></div>
+        <div class="sync-text" id="syncOverlayText">Đang đợi người ấy tải xong video...</div>
+        <div class="sync-sub">Phim sẽ tự động tiếp tục khi cả hai sẵn sàng</div>
+      </div>
+
+      <!-- Quick Action Overlay Notification (Play/Pause/Seek indicators) -->
+      <div class="action-hud" id="actionHud">
+        <i class="fa-solid fa-play" id="actionHudIcon"></i>
+        <span id="actionHudText">Phát</span>
+      </div>
+
+      <!-- Video Controls Overlay -->
+      <div class="custom-controls" id="customControls">
+        <!-- Progress Bar -->
+        <div class="progress-container" id="progressContainer">
+          <div class="progress-buffered" id="bufferedBar"></div>
+          <div class="progress-watched" id="progressBar"></div>
+          <div class="progress-hover-time" id="progressHover">00:00</div>
+        </div>
+
+        <div class="controls-bar">
+          <div class="ctrl-left">
+            <button class="ctrl-btn" id="btnPlayPause" title="Phát/Tạm dừng (Space)">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="ctrl-btn" id="btnRewind" title="Tua lại 10s (←)">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span class="seek-label">10s</span>
+            </button>
+            <button class="ctrl-btn" id="btnForward" title="Tua tới 10s (→)">
+              <i class="fa-solid fa-rotate-right"></i>
+              <span class="seek-label">10s</span>
+            </button>
+            <div class="time-display">
+              <span id="curTime">00:00</span> / <span id="durTime">00:00</span>
+            </div>
+          </div>
+
+          <div class="ctrl-right">
+            <!-- Volume Control -->
+            <div class="volume-box">
+              <button class="ctrl-btn" id="btnVol">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+              <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.05" value="1">
+            </div>
+
+            <!-- Speed selector -->
+            <div class="dropdown">
+              <button class="ctrl-btn text-btn" id="btnSpeed">1x</button>
+              <div class="dropdown-menu" id="speedMenu">
+                <div class="dropdown-item" data-speed="0.75">0.75x</div>
+                <div class="dropdown-item active" data-speed="1">1.0x (Chuẩn)</div>
+                <div class="dropdown-item" data-speed="1.25">1.25x</div>
+                <div class="dropdown-item" data-speed="1.5">1.5x</div>
+                <div class="dropdown-item" data-speed="2">2.0x</div>
+              </div>
+            </div>
+
+            <button class="ctrl-btn" id="btnPip" title="Hình trong hình (PiP)">
+              <i class="fa-regular fa-clone"></i>
+            </button>
+
+            <button class="ctrl-btn" id="btnFullscreen" title="Toàn màn hình (F)">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Voice & Partner Dock -->
+    <div class="co-watch-dock">
+      <!-- Self Profile -->
+      <div class="peer-card self-card" id="selfCard">
+        <div class="avatar-ring" id="selfRing">
+          <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=user1" alt="Avatar Bạn" id="selfAvatar">
+          <span class="mic-bubble" id="selfMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
+        </div>
+        <div class="peer-details">
+          <div class="peer-name">
+            <span id="selfNameDisplay">Bạn</span>
+            <span class="role-tag" id="selfRoleTag">Ưu tiên</span>
+          </div>
+          <div class="peer-state" id="selfState">Mic đã tắt</div>
+        </div>
+        <button class="btn-mic-toggle" id="btnToggleMic" title="Bật/Tắt Mic">
+          <i class="fa-solid fa-microphone-slash"></i>
+        </button>
+      </div>
+
+      <!-- Sync Divider -->
+      <div class="dock-divider">
+        <i class="fa-solid fa-heart heartbeat-icon" title="Đang đồng bộ xem chung"></i>
+      </div>
+
+      <!-- Partner Profile -->
+      <div class="peer-card partner-card" id="partnerCard">
+        <div class="avatar-ring" id="partnerRing">
+          <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=partner" alt="Avatar Người Ấy" id="partnerAvatar">
+          <span class="mic-bubble" id="partnerMicBadge"><i class="fa-solid fa-microphone-slash"></i></span>
+        </div>
+        <div class="peer-details">
+          <div class="peer-name">
+            <span id="partnerNameDisplay">Chờ kết nối...</span>
+            <span class="role-tag" id="partnerRoleTag">Ưu tiên</span>
+          </div>
+          <div class="peer-state" id="partnerState">Gửi link để mời</div>
+        </div>
+        <div class="voice-audio-element">
+          <!-- Remote Audio Output for WebRTC Voice -->
+          <audio id="remoteAudio" autoplay></audio>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Side Drawer: Episode Playlist -->
+  <aside class="playlist-drawer" id="playlistDrawer">
+    <div class="drawer-header">
+      <h3><i class="fa-solid fa-list"></i> Danh sách tập phim</h3>
+      <button class="btn-close" id="btnClosePlaylist"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="playlist-list" id="playlistItems">
+      <!-- Injected via JavaScript -->
+    </div>
+  </aside>
+
+  <!-- Settings Modal (Allows custom Bunny.net m3u8 URLs or names) -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sliders"></i> Cài đặt Phim & Đồng bộ</h3>
+        <button class="btn-close" id="btnCloseSettings"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Tên của bạn:</label>
+          <input type="text" id="inputSelfName" value="Anh" placeholder="Nhập tên của bạn">
+        </div>
+        <div class="form-group">
+          <label>Tên người cùng xem:</label>
+          <input type="text" id="inputPartnerName" value="Em" placeholder="Nhập tên người ấy">
+        </div>
+        <div class="form-group">
+          <label>Ai là người được ưu tiên?</label>
+          <select id="selectPriorityRole">
+            <option value="partner" selected>Người ấy (Nếu máy người ấy lag, máy bạn tự dừng chờ)</option>
+            <option value="self">Chính bạn</option>
+            <option value="both">Bình đẳng (Ai lag cũng chờ nhau)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Link Video (HLS `.m3u8` hoặc `.mp4` từ Bunny.net / Cloudflare):</label>
+          <textarea id="inputVideoSources" rows="4" placeholder="Tập 1|https://.../playlist.m3u8&#10;Tập 2|https://.../playlist.m3u8"></textarea>
+          <small class="hint">Định dạng mỗi dòng: [Tên tập]|[Đường dẫn video]</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnResetSettings">Khôi phục mặc định</button>
+        <button class="btn btn-primary" id="btnSaveSettings">Lưu cài đặt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
