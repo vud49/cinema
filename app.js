@@ -6,19 +6,286 @@
 // Default Demo Episodes (Can be configured in Settings for Bunny.net / Cloudflare links)
 const DEFAULT_EPISODES = [
   {
-    title: "Tập 1: Khởi Đầu Mới",
-    url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", // High-quality demo HLS
-    quality: "Full HD 1080p"
+    "epNum": 1,
+    "title": "Tập 1: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/306229b5-0438-4619-81dd-866dbb10026e/playlist.m3u8",
+    "quality": "Full HD 1080p"
   },
   {
-    title: "Tập 2: Thử Thách",
-    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    quality: "HD 720p"
+    "epNum": 2,
+    "title": "Tập 2: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/41068125-3a82-472a-ac25-d09c92265d18/playlist.m3u8",
+    "quality": "Full HD 1080p"
   },
   {
-    title: "Tập 3: Hội Ngộ",
-    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    quality: "HD 720p"
+    "epNum": 3,
+    "title": "Tập 3: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/10a44651-37f0-4e8b-9ae2-94b71181fb9b/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 4,
+    "title": "Tập 4: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/02ab4cf2-6c46-453c-9136-99fc89dbdfa3/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 5,
+    "title": "Tập 5: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/a75f80ee-19a2-4eef-9ae4-53d7f1147ca1/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 6,
+    "title": "Tập 6: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/b402c002-e814-448b-9a40-5b585dc73461/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 7,
+    "title": "Tập 7: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/1e73f964-85fb-4e42-909c-4a11133f80b7/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 8,
+    "title": "Tập 8: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/29365016-f405-4555-b01a-fba427427624/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 9,
+    "title": "Tập 9: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/ff1b0947-86db-48b3-9ec1-74b7307c435d/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 10,
+    "title": "Tập 10: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/3073e0c7-24ac-4373-9ad4-77e03ce094ea/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 11,
+    "title": "Tập 11: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/c9bb44d6-d32a-4bab-9f4e-779e32cbeca4/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 12,
+    "title": "Tập 12: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/e04f3211-2c15-4041-baa0-b72dcdcd5097/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 13,
+    "title": "Tập 13: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/87f4d89c-f02b-45df-b8cb-9134c09bbeba/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 14,
+    "title": "Tập 14: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/07ec0a1c-b0fb-4eb3-967f-0a6dda244f36/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 15,
+    "title": "Tập 15: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/b76bf236-5396-4855-a427-0e153f68e6cd/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 16,
+    "title": "Tập 16: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/eb2a0110-08a7-4b9f-b528-42b937176318/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 17,
+    "title": "Tập 17: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/d44a3d4b-fd64-41c3-a9a5-09942d47acb5/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 18,
+    "title": "Tập 18: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/f02619b6-b065-4108-8db1-644b27391c3a/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 19,
+    "title": "Tập 19: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/02c8143f-d2d0-4924-a139-a8e063643ee6/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 20,
+    "title": "Tập 20: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/7a935553-b680-4dd5-87b3-4e33311fd89a/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 21,
+    "title": "Tập 21: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/0c35da46-ba78-4ff9-8512-961725dbfd4b/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 22,
+    "title": "Tập 22: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/20920a0d-b6e2-4558-acfd-1aa42726648b/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 23,
+    "title": "Tập 23: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/1263aff5-12d3-48b5-a8d3-29703867a086/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 24,
+    "title": "Tập 24: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/ce5d14b0-82dd-42fc-a289-f22873874424/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 25,
+    "title": "Tập 25: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/cf6a24db-2c60-4528-9ae3-bdf42d8218c7/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 26,
+    "title": "Tập 26: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/948fe8e2-6d31-4f6f-9c86-b00dc2349928/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 27,
+    "title": "Tập 27: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/36070ecd-ee9a-4947-abc8-852c298c0c2f/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 28,
+    "title": "Tập 28: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/3d5e0f69-da9f-4193-a0a5-027401e28180/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 29,
+    "title": "Tập 29: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/655309d4-630f-4350-90c4-c1f58b2c5c56/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 30,
+    "title": "Tập 30: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/718fe231-e761-498c-ad3c-be2b6ae1e7be/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 31,
+    "title": "Tập 31: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/a170dc8d-9ca0-4787-baba-f6051b4b3439/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 32,
+    "title": "Tập 32: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/2389afea-a6a4-443c-86fe-69ee304bd7e4/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 33,
+    "title": "Tập 33: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/42979fcf-4718-4f39-952e-94b34d5c57f7/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 34,
+    "title": "Tập 34: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/abb595fe-abc4-4cb6-a6d2-f090b8da1d59/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 35,
+    "title": "Tập 35: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/c8d67a34-c3bb-4bee-85a2-58247acf3c00/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 36,
+    "title": "Tập 36: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/58bfe49a-401e-4c34-828e-6d6307b9ef23/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 37,
+    "title": "Tập 37: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/7dd9315a-3b5f-4fc3-b0af-796125c86b50/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 38,
+    "title": "Tập 38: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/856a81ee-61e3-445f-9713-f2de9bfbbc56/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 39,
+    "title": "Tập 39: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/1920f457-f966-47e6-a0b1-4abbca5aac0e/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 40,
+    "title": "Tập 40: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/991b09e3-156d-440f-81b5-4f6244ab30ce/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 41,
+    "title": "Tập 41: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/bc993c87-0665-4c4b-8bfb-a95c82eabd30/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 42,
+    "title": "Tập 42: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/b3a60df1-f79e-451c-ad10-98a82d937469/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 43,
+    "title": "Tập 43: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/d2faca59-c0ac-48f3-9b0a-9d8b2ce7e93d/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 44,
+    "title": "Tập 44: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/c70591eb-79a9-417f-88a4-c41729a58353/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 45,
+    "title": "Tập 45: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/4c2afe02-02f8-4de9-9a3e-fb2955bf435e/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 46,
+    "title": "Tập 46: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/13d0252f-09a8-4f25-94ba-e362ba0cc09c/playlist.m3u8",
+    "quality": "Full HD 1080p"
+  },
+  {
+    "epNum": 47,
+    "title": "Tập 47: Lan Hương Như Cố",
+    "url": "https://vz-ef324221-9e9.b-cdn.net/44565e12-74dc-4c61-8e1e-30382897afb6/playlist.m3u8",
+    "quality": "Full HD 1080p"
   }
 ];
 
@@ -164,6 +431,19 @@ function loadEpisode(index, autoPlay = true) {
       hlsInstance.loadSource(url);
       hlsInstance.attachMedia(video);
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (hlsInstance.levels && hlsInstance.levels.length > 0) {
+          let bestLevel = 0;
+          let maxHeight = 0;
+          hlsInstance.levels.forEach((lvl, i) => {
+            if (lvl.height >= maxHeight) {
+              maxHeight = lvl.height;
+              bestLevel = i;
+            }
+          });
+          hlsInstance.currentLevel = bestLevel;
+          document.getElementById('streamQuality').textContent = `${maxHeight}p Full HD`;
+          console.log(`[HLS] Locked to resolution: ${maxHeight}p`);
+        }
         if (autoPlay) video.play().catch(() => {});
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
